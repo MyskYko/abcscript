@@ -1,0 +1,6 @@
+[submodule "abc"]
+	path = abc
+	url = https://github.com/MyskYko/abc2.git
+[submodule "argparse"]
+	path = argparse
+	url = https://github.com/p-ranav/argparse.git
