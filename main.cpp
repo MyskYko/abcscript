@@ -147,6 +147,20 @@ int main(int argc, char **argv) {
     Gia_Man_t * pNew = Gia_ManTtopt(pGia, Gia_ManCiNum(pGia), Gia_ManCoNum(pGia), 100);
     start_points.push_back(pNew);
   }
+  {
+    pAbc->pGia = Gia_ManDup(pGia);
+    Cmd_CommandExecute(pAbc, "&put; collapse; sop; fx; strash; &get");
+    start_points.push_back(Gia_ManDup(pAbc->pGia));
+    Gia_ManStop(pAbc->pGia);
+    pAbc->pGia = NULL;
+  }
+  {
+    pAbc->pGia = Gia_ManDup(pGia);
+    Cmd_CommandExecute(pAbc, "&put; collapse; dsd; sop; fx; strash; &get");
+    start_points.push_back(Gia_ManDup(pAbc->pGia));
+    Gia_ManStop(pAbc->pGia);
+    pAbc->pGia = NULL;
+  }
 
   // optimize
   for(auto p: start_points) {
