@@ -154,6 +154,7 @@ int main(int argc, char **argv) {
     Gia_ManStop(pAbc->pGia);
     pAbc->pGia = NULL;
   }
+  /*
   {
     pAbc->pGia = Gia_ManDup(pGia);
     Cmd_CommandExecute(pAbc, "&put; collapse; dsd; sop; fx; strash; &get");
@@ -161,6 +162,7 @@ int main(int argc, char **argv) {
     Gia_ManStop(pAbc->pGia);
     pAbc->pGia = NULL;
   }
+  */
 
   // optimize
   for(auto p: start_points) {
