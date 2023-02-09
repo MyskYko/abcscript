@@ -2,8 +2,7 @@ cmake_minimum_required(VERSION 3.8)
 project(abcscript CXX C)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-add_compile_options(-g -O3) # -DNDEBUG
+add_compile_options(-O3)
 
 add_subdirectory(abc)
 add_subdirectory(argparse)

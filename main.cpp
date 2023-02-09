@@ -95,6 +95,8 @@ int main(int argc, char **argv) {
   ap.add_argument("-r", "--reset_hop").default_value(true).implicit_value(false);
   ap.add_argument("-b", "--seed_base").default_value(0).scan<'i', int>();
   ap.add_argument("-c", "--cspf").default_value(false).implicit_value(true);
+  ap.add_argument("-s", "--multi_starts").default_value(true).implicit_value(false);
+  ap.add_argument("-t", "--use_original").default_value(true).implicit_value(false);
   ap.add_argument("-v", "--verbose").default_value(false).implicit_value(true);
   try {
     ap.parse_args(argc, argv);
@@ -135,34 +137,30 @@ int main(int argc, char **argv) {
 
   // setup start points
   vector<Gia_Man_t *> start_points;
-  start_points.push_back(Gia_ManDup(pGia));
-  {
-    pAbc->pGia = Gia_ManDup(pGia);
-    Cmd_CommandExecute(pAbc, "&put; collapse; strash; &get");
-    start_points.push_back(Gia_ManDup(pAbc->pGia));
-    Gia_ManStop(pAbc->pGia);
-    pAbc->pGia = NULL;
+  if(ap.get<bool>("--use_original")) {
+    start_points.push_back(Gia_ManDup(pGia));
   }
-  {
-    Gia_Man_t * pNew = Gia_ManTtopt(pGia, Gia_ManCiNum(pGia), Gia_ManCoNum(pGia), 100);
-    start_points.push_back(pNew);
+  if(ap.get<bool>("--multi_starts")) {
+    {
+      pAbc->pGia = Gia_ManDup(pGia);
+      Cmd_CommandExecute(pAbc, "&put; collapse; strash; &get");
+      start_points.push_back(Gia_ManDup(pAbc->pGia));
+      Gia_ManStop(pAbc->pGia);
+      pAbc->pGia = NULL;
+    }
+    {
+      Gia_Man_t * pNew = Gia_ManTtopt(pGia, Gia_ManCiNum(pGia), Gia_ManCoNum(pGia), 100);
+      start_points.push_back(pNew);
+    }
+    {
+      pAbc->pGia = Gia_ManDup(pGia);
+      Cmd_CommandExecute(pAbc, "&put; collapse; sop; fx; strash; &get");
+      start_points.push_back(Gia_ManDup(pAbc->pGia));
+      Gia_ManStop(pAbc->pGia);
+      pAbc->pGia = NULL;
+    }
+    //Cmd_CommandExecute(pAbc, "&put; collapse; dsd; sop; fx; strash; &get");
   }
-  {
-    pAbc->pGia = Gia_ManDup(pGia);
-    Cmd_CommandExecute(pAbc, "&put; collapse; sop; fx; strash; &get");
-    start_points.push_back(Gia_ManDup(pAbc->pGia));
-    Gia_ManStop(pAbc->pGia);
-    pAbc->pGia = NULL;
-  }
-  /*
-  {
-    pAbc->pGia = Gia_ManDup(pGia);
-    Cmd_CommandExecute(pAbc, "&put; collapse; dsd; sop; fx; strash; &get");
-    start_points.push_back(Gia_ManDup(pAbc->pGia));
-    Gia_ManStop(pAbc->pGia);
-    pAbc->pGia = NULL;
-  }
-  */
 
   // optimize
   for(auto p: start_points) {
