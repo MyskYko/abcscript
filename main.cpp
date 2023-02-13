@@ -90,13 +90,13 @@ int main(int argc, char **argv) {
   argparse::ArgumentParser ap("opt");
   ap.add_argument("input");
   ap.add_argument("output");
-  ap.add_argument("-n", "--num_restarts").default_value(10).scan<'i', int>();
-  ap.add_argument("-m", "--num_hops").default_value(10).scan<'i', int>();
+  ap.add_argument("-n", "--num_restarts").default_value(0).scan<'i', int>();
+  ap.add_argument("-m", "--num_hops").default_value(0).scan<'i', int>();
   ap.add_argument("-r", "--reset_hop").default_value(true).implicit_value(false);
   ap.add_argument("-b", "--seed_base").default_value(0).scan<'i', int>();
   ap.add_argument("-c", "--cspf").default_value(false).implicit_value(true);
   ap.add_argument("-s", "--multi_starts").default_value(true).implicit_value(false);
-  ap.add_argument("-t", "--use_original").default_value(true).implicit_value(false);
+  ap.add_argument("-t", "--original_only").default_value(false).implicit_value(true);
   ap.add_argument("-v", "--verbose").default_value(false).implicit_value(true);
   try {
     ap.parse_args(argc, argv);
@@ -137,10 +137,8 @@ int main(int argc, char **argv) {
 
   // setup start points
   vector<Gia_Man_t *> start_points;
-  if(ap.get<bool>("--use_original")) {
-    start_points.push_back(Gia_ManDup(pGia));
-  }
-  if(ap.get<bool>("--multi_starts")) {
+  start_points.push_back(Gia_ManDup(pGia));
+  if(!ap.get<bool>("--original_only")) {
     {
       pAbc->pGia = Gia_ManDup(pGia);
       Cmd_CommandExecute(pAbc, "&put; collapse; strash; &get");
@@ -160,6 +158,19 @@ int main(int argc, char **argv) {
       pAbc->pGia = NULL;
     }
     //Cmd_CommandExecute(pAbc, "&put; collapse; dsd; sop; fx; strash; &get");
+  }
+
+  if(!ap.get<bool>("--multi_starts")) {
+    Gia_Man_t * pBest = Gia_ManDup(pGia);
+    for(auto p: start_points) {
+      if(Gia_ManAndNum(p) < Gia_ManAndNum(pBest)) {
+        Gia_ManStop(pBest);
+        pBest = Gia_ManDup(p);
+      }
+      Gia_ManStop(p);
+    }
+    start_points.clear();
+    start_points.push_back(pBest);
   }
 
   // optimize
