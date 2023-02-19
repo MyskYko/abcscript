@@ -20,13 +20,14 @@ using namespace std;
 string abcopt = "&dc2";
 int tseed;
 bool fCspf;
+bool fMerge;
 Gia_Man_t * opt1(Gia_Man_t * pOld) {
   Abc_Frame_t * pAbc = Abc_FrameGetGlobalFrame();
   Gia_Man_t * pGia = Gia_ManDup(pOld);
   int n;
   do {
     n = Gia_ManAndNum(pGia);
-    Gia_Man_t * pNew = Gia_ManTransduction(pGia, 6, !fCspf, tseed++, 0, 0, 0, 0);
+    Gia_Man_t * pNew = Gia_ManTransduction(pGia, (fMerge? 6: 7), !fCspf, tseed++, 0, 0, 0, NULL, 0);
     Gia_ManStop(pGia);
     pAbc->pGia = pNew;    
     Cmd_CommandExecute(pAbc, abcopt.c_str());
@@ -97,6 +98,7 @@ int main(int argc, char **argv) {
   ap.add_argument("-c", "--cspf").default_value(false).implicit_value(true);
   ap.add_argument("-s", "--multi_starts").default_value(true).implicit_value(false);
   ap.add_argument("-t", "--original_only").default_value(false).implicit_value(true);
+  ap.add_argument("-u", "--merge").default_value(true).implicit_value(false);
   ap.add_argument("-v", "--verbose").default_value(false).implicit_value(true);
   try {
     ap.parse_args(argc, argv);
@@ -113,6 +115,7 @@ int main(int argc, char **argv) {
   resethop = ap.get<bool>("--reset_hop");
   seedbase = ap.get<int>("--seed_base");
   fCspf = ap.get<bool>("--cspf");
+  fMerge = ap.get<bool>("--merge");
   //vector<string> abccmds = {"resyn;", "resyn2;", "resyn2a;", "resyn3;", "compress;", "compress2;", "resyn2rs;", "compress2rs;", "resub –l -N 2 -K 16;", "iresyn –l;", "&get;&fraig –x;&put;"};
 
   // abc init
