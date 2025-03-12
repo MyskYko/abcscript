@@ -9,3 +9,9 @@ add_subdirectory(argparse)
 
 add_executable(opt main.cpp)
 target_link_libraries(opt libabc argparse)
+
+add_executable(opt2 main2.cpp)
+target_link_libraries(opt2 libabc argparse)
+
+add_executable(opt3 main3.cpp)
+target_link_libraries(opt3 libabc argparse)

@@ -133,14 +133,13 @@ int main(int argc, char **argv) {
       Gia_ManStop(pGia);
       pGia = Gia_ManDup(Abc_FrameReadGia(pAbc));
     }
-    cout << itr << " " << Abc_NtkNodeNum(Abc_FrameReadNtk(pAbc)) << endl;
-    /*
-    if(n > Abc_NtkNodeNum(Abc_FrameReadNtk(pAbc))) {
-      n = Abc_NtkNodeNum(Abc_FrameReadNtk(pAbc));
-      itr_end = itr + max_noimp;
-      //pNtkRes = Abc_NtkDup( pNtk );
-    }
-    */
+    cout << itr << " " << GIASIZE << endl;
+    // if(n > Abc_NtkNodeNum(Abc_FrameReadNtk(pAbc))) {
+    //   n = Abc_NtkNodeNum(Abc_FrameReadNtk(pAbc));
+    //   itr_end = itr + max_noimp;
+    //   //pNtkRes = Abc_NtkDup( pNtk );
+    // }
+    // cout << itr << " " << AIGSIZE << endl;
   }
   cout << endl;
     
