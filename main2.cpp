@@ -28,9 +28,10 @@ int main(int argc, char **argv) {
   argparse::ArgumentParser ap("opt");
   ap.add_argument("input");
   ap.add_argument("-o", "--output");
-  ap.add_argument("-s", "--stages").default_value(20).scan<'i', int>(); // number of moves to decide
+  //ap.add_argument("-s", "--stages").default_value(20).scan<'i', int>(); // number of moves to decide
   ap.add_argument("-d", "--depth").default_value(5).scan<'i', int>(); // length of each sample (excluding the target move itself)
   ap.add_argument("-w", "--width").default_value(10).scan<'i', int>(); // number of samples for each move
+  ap.add_argument("-m", "--no_improvement").default_value(5).scan<'i', int>();
   ap.add_argument("-r", "--random_seed").default_value(0).scan<'i', int>();
   ap.add_argument("-v", "--verbose").default_value(false).implicit_value(true);
   try {
@@ -43,9 +44,10 @@ int main(int argc, char **argv) {
   }
 
   // parameters
-  int nStages = ap.get<int>("-s");
+  //int nStages = ap.get<int>("-s");
   int nDepth = ap.get<int>("-d");
   int nWidth = ap.get<int>("-w");
+  int nNoImprovement = ap.get<int>("-m");
   int random_seed = ap.get<int>("-r");
   int fVerbose = ap.get<bool>("-v");
   std::mt19937 rng(random_seed);
@@ -68,9 +70,8 @@ int main(int argc, char **argv) {
     "rwz -l",
     "rf -l",
     "rfz -l",
-    "rs -l",
-    "rs -N 2 -l",
-  /*
+    //"rs -l",
+    //"rs -N 2 -l",
     "rs -K 6 -l",
     "rs -K 6 -N 2 -l",
     "rs -K 8 -l",
@@ -79,7 +80,6 @@ int main(int argc, char **argv) {
     "rs -K 10 -N 2 -l",
     "rs -K 12 -l",
     "rs -K 12 -N 2 -l",
-  */
     "orchestrate -l"
   };
   int nMoves = moves.size();
@@ -103,7 +103,11 @@ int main(int argc, char **argv) {
   string selected_commands;
   string best_command;
   int n = AIGSIZE;
-  for(int s = 0; s < nStages; s++) {
+  //for(int s = 0; s < nStages; s++) {
+  int itr = 0;
+  int itr_end = itr + nNoImprovement;
+  for(; itr < itr_end; itr++) {
+    cout << itr << ": " << AIGSIZE << " (" << n << ")" << endl;
     // generate sample
     vector<string> samples;
     for(int w = 0; w < nWidth; w++) {
@@ -131,6 +135,7 @@ int main(int argc, char **argv) {
           pBest = Abc_NtkDup(Abc_FrameReadNtk(pAbc));
           n = AIGSIZE;
           best_command = command;
+          itr_end = itr + nNoImprovement + 1;
         }
       }
     }
@@ -191,6 +196,8 @@ int main(int argc, char **argv) {
 
   // finish
   Abc_Stop();
+
+  std::cout << "#itration: " << itr << endl;
   
   return 0;
 }

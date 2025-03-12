@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
   auto start = chrono::steady_clock::now();
   int n = AIGSIZE;
   int itr = 0;
-  int itr_end = itr + nNoImprovement + 1;
+  int itr_end = itr + nNoImprovement;
   for(; itr < itr_end; itr++) {
     Cmd_CommandExecute(pAbc, command.c_str());
     if(fVerbose) {
@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
     }
     if(n > AIGSIZE) {
       n = AIGSIZE;
-      itr_end = itr + nNoImprovement + 2;
+      itr_end = itr + nNoImprovement + 1;
     }
   }
   
