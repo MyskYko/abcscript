@@ -22,12 +22,12 @@
 
 using namespace std;
 
-std::string DeepSynOne(int i) {
+std::string DeepSynOne(int i, int &fCom) {
   int fUseTwo = 0;
   unsigned Rand = Abc_Random(0);
   int fDch = Rand & 1;
   //int fCom = (Rand >> 1) & 3;
-  //int fCom = (Rand >> 1) & 1;
+  fCom = (Rand >> 1) & 1;
   int fFx  = (Rand >> 2) & 1;
   int KLut = fUseTwo ? 2 + (i % 5) : 3 + (i % 4);
   std::string Command;
@@ -47,8 +47,9 @@ int main(int argc, char **argv) {
   argparse::ArgumentParser ap("opt");
   ap.add_argument("input");
   ap.add_argument("-o", "--output");
-  ap.add_argument("-m", "--max_noimp").default_value(10).scan<'i', int>();
+  ap.add_argument("-m", "--max_noimp").default_value(100).scan<'i', int>();
   ap.add_argument("-r", "--random_seed").default_value(0).scan<'i', int>();
+  ap.add_argument("-v", "--verbose").default_value(false).implicit_value(true);
   try {
     ap.parse_args(argc, argv);
   }
@@ -60,8 +61,9 @@ int main(int argc, char **argv) {
 
   // parameters
   int max_noimp = ap.get<int>("-m");
-  int random_seed = ap.get<int>("-m");
-  std::mt19937 rng(random_seed);
+  int random_seed = ap.get<int>("-r");
+  //std::mt19937 rng(random_seed);
+  int fVerbose = ap.get<bool>("-v");
 
   // abc init
   Abc_Start();
@@ -86,7 +88,9 @@ int main(int argc, char **argv) {
     Cmd_CommandExecute(pAbc, cstr);
     delete [] cstr;
   }
-  cout << "init: " << GIASIZE << endl;
+  if(fVerbose) {
+    cout << "init: " << GIASIZE << endl;
+  }
 
   // optimize
   auto start = chrono::steady_clock::now();
@@ -96,12 +100,29 @@ int main(int argc, char **argv) {
   int itr = 0;
   int itr_end = itr + max_noimp;
   while(itr < itr_end) {
+    if(fVerbose) {
+      cout << itr << " " << GIASIZE << endl;
+    }
     // ifmfs
-    std::string Command = DeepSynOne(itr);
-    cout << Command << endl;
+    int fCom;
+    string Command = DeepSynOne(itr, fCom);
+    if(fVerbose) {
+      cout << Command << endl;
+    }
     Cmd_CommandExecute(pAbc, Command.c_str());
-    cout << "ifmfs: " << GIASIZE << endl;
+    if(fCom) {
+      if(fVerbose) {
+        cout << "c2rs" << endl;
+      }
+      Cmd_CommandExecute(pAbc, "&put; compress2rs; &get");
+    } else {
+      if(fVerbose) {
+        cout << "&dc2" << endl;
+      }
+      Cmd_CommandExecute(pAbc, "&dc2");
+    }
 
+    /*
     if(rng() & 1) {
       Cmd_CommandExecute(pAbc, "&put");
       int m = GIASIZE;
@@ -121,6 +142,7 @@ int main(int argc, char **argv) {
         cout << "dc2: " << setw(5) <<  GIASIZE << endl;
       }
     }
+    */
     //Cmd_CommandExecute(pAbc, "compress2rs");
     //Cmd_CommandExecute(pAbc, "orchestrate -K 12 -N 2 -l");
     //Cmd_CommandExecute(pAbc, "orchestrate -K 12 -N 2 -l; balance");
@@ -133,7 +155,6 @@ int main(int argc, char **argv) {
       Gia_ManStop(pGia);
       pGia = Gia_ManDup(Abc_FrameReadGia(pAbc));
     }
-    cout << itr << " " << GIASIZE << endl;
     // if(n > Abc_NtkNodeNum(Abc_FrameReadNtk(pAbc))) {
     //   n = Abc_NtkNodeNum(Abc_FrameReadNtk(pAbc));
     //   itr_end = itr + max_noimp;
@@ -141,13 +162,14 @@ int main(int argc, char **argv) {
     // }
     // cout << itr << " " << AIGSIZE << endl;
   }
-  cout << endl;
     
   auto end = chrono::steady_clock::now();
   std::chrono::duration<double> elapsed_seconds = end - start;
-  cout << "elapsed_seconds " << elapsed_seconds.count() << endl;
-  cout << "iteration " << itr << endl;
-  cout << "size " << n << endl;
+  if(fVerbose) {
+    cout << "elapsed_seconds " << elapsed_seconds.count() << endl;
+    cout << "size " << n << endl;
+  }
+  cout << "#iteration: " << itr << endl;
 
   // write
   if(auto poutput = ap.present("-o")) {
@@ -158,6 +180,8 @@ int main(int argc, char **argv) {
     strcat(cstr, str.c_str());
     Cmd_CommandExecute(pAbc, cstr);
     delete [] cstr;
+  } else {
+    Gia_ManStop(pGia);
   }
 
   // finish
