@@ -13,7 +13,6 @@
 
 #include <chrono>
 #include <string>
-#include <random>
 #include <limits>
 
 #include "alias.h"
@@ -23,16 +22,29 @@
 
 using namespace std;
 
+void prepare_frontiers(vector<string> const &moves, vector<Abc_Ntk_t *> &frontiers, int depth) {
+  Abc_Frame_t * pAbc = Abc_FrameGetGlobalFrame();
+  Abc_Ntk_t * pNtk = Abc_NtkDup(Abc_FrameReadNtk(pAbc));
+  if(depth == 0) {
+    frontiers.push_back(pNtk);
+    return;
+  }
+  for(string m: moves) {
+    Cmd_CommandExecute(pAbc, m.c_str());
+    prepare_frontiers(moves, frontiers, depth - 1);
+    Abc_FrameReplaceCurrentNetwork(pAbc, Abc_NtkDup(pNtk));
+  }
+  Abc_NtkDelete(pNtk);
+}
+
 int main(int argc, char **argv) {
   // argparse
   argparse::ArgumentParser ap("opt");
   ap.add_argument("input");
   ap.add_argument("-o", "--output");
   //ap.add_argument("-s", "--stages").default_value(20).scan<'i', int>(); // number of moves to decide
-  ap.add_argument("-d", "--depth").default_value(5).scan<'i', int>(); // length of each sample (excluding the target move itself)
-  ap.add_argument("-w", "--width").default_value(10).scan<'i', int>(); // number of samples for each move
+  ap.add_argument("-d", "--depth").default_value(1).scan<'i', int>(); // length of each sample (excluding the target move itself)
   ap.add_argument("-m", "--no_improvement").default_value(5).scan<'i', int>();
-  ap.add_argument("-r", "--random_seed").default_value(0).scan<'i', int>();
   ap.add_argument("-v", "--verbose").default_value(false).implicit_value(true);
   try {
     ap.parse_args(argc, argv);
@@ -46,19 +58,12 @@ int main(int argc, char **argv) {
   // parameters
   //int nStages = ap.get<int>("-s");
   int nDepth = ap.get<int>("-d");
-  int nWidth = ap.get<int>("-w");
   int nNoImprovement = ap.get<int>("-m");
-  int random_seed = ap.get<int>("-r");
   int fVerbose = ap.get<bool>("-v");
-  std::mt19937 rng(random_seed);
 
   // abc init
   Abc_Start();
   Abc_Frame_t * pAbc = Abc_FrameGetGlobalFrame();
-  Abc_Random(1);
-  for(int s = 0; s < 10 + random_seed; s++) {
-    Abc_Random(0);
-  }
   
   // setup alias
   for(char * cmd: alias) {
@@ -100,53 +105,42 @@ int main(int argc, char **argv) {
 
   // optimize
   auto start = chrono::steady_clock::now();
-  Abc_Ntk_t * pNtk = Abc_NtkDup(Abc_FrameReadNtk(pAbc));
+  // prepare frontiers
+  vector<Abc_Ntk_t *> frontiers;
+  prepare_frontiers(moves, frontiers, nDepth);
+  int nFrontiers = frontiers.size();
+  // iterate
   Abc_Ntk_t * pBest = Abc_NtkDup(Abc_FrameReadNtk(pAbc));
-  string selected_commands;
-  string best_command;
   int n = AIGSIZE;
-  //for(int s = 0; s < nStages; s++) {
   int itr = 0;
   int itr_end = itr + nNoImprovement;
   for(; itr < itr_end; itr++) {
+    vector<vector<float>> scores(nMoves);
+    vector<vector<Abc_Ntk_t *>> next_frontiers(nMoves);
+    int i = 0;
     if(fVerbose) {
-      cout << itr << ": " << AIGSIZE << " (" << n << ")" << endl;
+      cout << frontiers.size() << endl;
     }
-    // generate sample
-    vector<string> samples;
-    for(int w = 0; w < nWidth; w++) {
-      string sample;
-      for(int d = 0; d < nDepth; d++) {
-        sample += ";";
-        sample += moves[rng() % nMoves];
-      }
-      samples.push_back(sample);
-    }
-    // execute samples
-    std::vector<std::vector<float>> scores(nMoves); // for each move, for each sample
-    for(int i = 0; i < nMoves; i++) {
-      for(int w = 0; w < nWidth; w++) {
+    for(Abc_Ntk_t * pNtk: frontiers) {
+      for(string m: moves) {
         Abc_FrameReplaceCurrentNetwork(pAbc, Abc_NtkDup(pNtk));
-        string command = moves[i];
-        command += samples[w];
-        if(fVerbose) {
-          //cout << "\texecuting " << command << endl;
-        }
-        Cmd_CommandExecute(pAbc, command.c_str());
-        scores[i].push_back(-(float)AIGSIZE); // smaller AIG gets higher score
+        Cmd_CommandExecute(pAbc, m.c_str());
         if(n > AIGSIZE) {
           Abc_NtkDelete(pBest);
           pBest = Abc_NtkDup(Abc_FrameReadNtk(pAbc));
           n = AIGSIZE;
-          best_command = command;
           itr_end = itr + nNoImprovement + 1;
         }
+        int bin = i / nFrontiers;
+        scores[bin].push_back(-(float)AIGSIZE); // smaller AIG gets higher score
+        next_frontiers[bin].push_back(Abc_NtkDup(Abc_FrameReadNtk(pAbc)));
+        i++;
       }
     }
     if(fVerbose) {
       for(int i = 0; i < nMoves; i++) {
         cout << "move " << i << ": ";
-        for(int w = 0; w < nWidth; w++) {
+        for(int w = 0; w < nFrontiers; w++) {
           cout << scores[i][w] << ",";
         }
         cout << endl;
@@ -159,27 +153,27 @@ int main(int argc, char **argv) {
       float best_score = numeric_limits<float>::lowest();
       for(int i = 0; i < nMoves; i++) {
         float score = 0;
-        for(int w = 0; w < nWidth; w++) {
+        for(int w = 0; w < nFrontiers; w++) {
           score += scores[i][w];
         }
-        score /= nWidth;
+        score /= nFrontiers;
         if(best_score < score) {
           best_score = score;
           selected_move = i;
         }
       }
     }
-    // apply selected move
-    Abc_FrameReplaceCurrentNetwork(pAbc, pNtk);
-    string command = moves[selected_move];
-    Cmd_CommandExecute(pAbc, command.c_str());
-    pNtk = Abc_NtkDup(Abc_FrameReadNtk(pAbc));
-    selected_commands += moves[selected_move];
     if(fVerbose) {
       cout << "selecting " << moves[selected_move] << endl;
     }
+    frontiers.swap(next_frontiers[selected_move]);
+    for(auto & fs: next_frontiers) {
+      for(auto & p: fs) {
+        Abc_NtkDelete(p);
+      }
+    }
   }
-
+  
   // end
   auto end = chrono::steady_clock::now();
   std::chrono::duration<double> elapsed_seconds = end - start;
@@ -187,7 +181,9 @@ int main(int argc, char **argv) {
     cout << "elapsed_seconds " << elapsed_seconds.count() << endl;
     cout << "size " << n << endl;
   }
-  Abc_NtkDelete(pNtk);
+  for(auto & p: frontiers) {
+    Abc_NtkDelete(p);
+  }
 
   // write
   if(auto poutput = ap.present("-o")) {

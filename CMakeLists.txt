@@ -15,3 +15,6 @@ target_link_libraries(opt2 libabc argparse)
 
 add_executable(opt3 main3.cpp)
 target_link_libraries(opt3 libabc argparse)
+
+add_executable(opt4 main4.cpp)
+target_link_libraries(opt4 libabc argparse)
