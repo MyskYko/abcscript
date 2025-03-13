@@ -205,7 +205,7 @@ int main(int argc, char **argv) {
   // finish
   Abc_Stop();
 
-  std::cout << "#itration: " << itr << endl;
+  std::cout << "#iteration: " << itr << endl;
   
   return 0;
 }
